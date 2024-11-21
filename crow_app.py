@@ -29,8 +29,13 @@ class VocabularyQuizApp(ctk.CTk):
         self.title("Finnish Vocabulary Quiz")
         self.geometry("1280x720")
         
+        path_lessons = "./Lessons/"
+
         # Lesson Files Setup
-        self.lesson_files = [name for name in os.listdir('.') if os.path.isfile(name) and name.endswith('.csv')]
+        self.lesson_files = [
+            name for name in os.listdir(path_lessons) 
+            if os.path.isfile(os.path.join(path_lessons, name)) and name.endswith('.csv')
+            ]
         self.words = {}
         self.units = []
         self.unit_len = 0
@@ -40,7 +45,7 @@ class VocabularyQuizApp(ctk.CTk):
         self.waiting_for_next = False  # Flag to control waiting for Enter after feedback
 
         # UI Elements
-        self.label_instruction = ctk.CTkLabel(self, text="Learn finnish :)", font=("Arial", 128))
+        self.label_instruction = ctk.CTkLabel(self, text="Learn suomi :)", font=("Arial", 128))
         self.label_instruction.pack(pady=10)
 
         self.lesson_var = ctk.StringVar(value="Select a lesson")
@@ -75,7 +80,7 @@ class VocabularyQuizApp(ctk.CTk):
             self.score = 0
             self.waiting_for_next = False
             # Load words from the selected CSV file
-            with open(lesson_name, 'r', encoding='utf-8') as csv_file:
+            with open("Lessons/" + lesson_name, 'r', encoding='utf-8') as csv_file:
                 csv_reader = csv.reader(csv_file)
                 for row in csv_reader:
                     if len(row) >= 2:
