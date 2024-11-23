@@ -3,6 +3,7 @@ import random
 import os
 import customtkinter as ctk
 import word as wd
+import help as hp
 
 # Initialize the customtkinter theme
 ctk.set_appearance_mode("dark")  # Modes: "System" (default), "Dark", "Light"
@@ -14,16 +15,17 @@ class VocabularyQuizApp(ctk.CTk):
         self.title("Finnish Vocabulary Quiz")
         self.geometry("1280x720")
         
-        path_lessons = "./Lessons/"
+        self.path_lessons = "./Lessons/"
 
         # Lesson Files Setup
         self.lesson_files = [
-            name for name in os.listdir(path_lessons) 
-            if os.path.isfile(os.path.join(path_lessons, name)) and name.endswith('.csv')
+            name for name in os.listdir(self.path_lessons) 
+            if os.path.isfile(os.path.join(self.path_lessons, name)) and name.endswith('.csv')
             ]
         self.words = []
         self.score = 0
         self.current_word = None
+        self.current_word_index = None
         self.total_words = 0
 
         self.cur_slide_num = 0
@@ -49,7 +51,13 @@ class VocabularyQuizApp(ctk.CTk):
             font=("Arials", 64))
         self.lesson_menu.pack()
 
-        self.start_button = ctk.CTkButton(self, text="Start Quiz", command=self.load_lesson, width=600, height=50, font=("Arials", 64))
+        self.start_button = ctk.CTkButton(
+            self, 
+            text="Start Quiz", 
+            command=self.load_lesson, 
+            width=600, 
+            height=50, 
+            font=("Arials", 64))
         self.start_button.pack(pady=20)
 
         self.continue_button = ctk.CTkButton(
@@ -65,7 +73,7 @@ class VocabularyQuizApp(ctk.CTk):
 
         self.entry_translation = ctk.CTkEntry(self, placeholder_text="Enter your translation here", width=600, height=50, font=("Arials", 32))
         #self.entry_translation.pack(pady=10)
-        self.entry_translation.bind("<Return>", lambda event: self.handle_enter_key())  # Bind Enter key
+        self.entry_translation.bind("<Return>", lambda event: self.handle_enter_key())
 
         self.label_feedback = ctk.CTkLabel(self, text="", font=("Arial", 32))
         self.label_feedback.pack(pady=10)
@@ -78,6 +86,7 @@ class VocabularyQuizApp(ctk.CTk):
 
     def load_lesson(self):
         lesson_name = self.lesson_var.get()
+
         if lesson_name and lesson_name in self.lesson_files:
             self.words.clear()
             self.score = 0
@@ -85,13 +94,13 @@ class VocabularyQuizApp(ctk.CTk):
             self.waiting_for_next = False
 
 
-            with open("Lessons/" + lesson_name, 'r', encoding='utf-8') as csv_file:
+            with open(self.path_lessons + lesson_name, 'r', encoding='utf-8') as csv_file:
                 csv_reader = csv.reader(csv_file)
                 slide = 0
                 for row in csv_reader:
                     if len(row) >= 2:
-                        finnish, english = row[0].strip(), row[1].strip()
-                        self.words.append(wd.Word(finnish, english, "to be implemented", slide))
+                        finnish, english, sentance = row[0].strip(), row[1].strip(), row[2].strip()
+                        self.words.append(wd.Word(finnish, english, sentance, slide))
                     
                     if(row[0] == "-"):
                         slide+=1
@@ -104,26 +113,19 @@ class VocabularyQuizApp(ctk.CTk):
         else:
             self.label_feedback.configure(text="Please select a valid lesson.", text_color="red")
 
-    def next_question(self):
-        if not self.cur_slide_words:
-            if not self.words:
-                self.label_question.configure(text="Quiz Completed!")
-                self.label_feedback.configure(text=f"Final Score: {round((self.score / self.total_words) * 100, 2)}%", text_color="green")
-                #self.entry_translation.configure(state="disabled")
-                self.entry_translation.pack_forget()
-                self.lesson_menu.pack(pady = 20)
-                self.start_button.pack()
-            else:
-                self.cur_slide_num += 1
-                self.print_slide()
-            return
-
+    def next_tranlation(self):    
+        #UI
         self.label_question.pack()
         self.entry_translation.pack()
         self.cur_slide_label.pack_forget()
 
         self.current_word = random.choice(self.cur_slide_words)
-        self.label_question.configure(text=f"Translate: {self.current_word.english}")
+
+        if(self.current_word.english == "-"):
+            self.label_question.configure(text=f"{self.current_word.sentance}")
+        else:
+            self.label_question.configure(text=f"Translate: {self.current_word.english}")
+
         self.entry_translation.delete(0, ctk.END)
         self.label_feedback.configure(text="")
         self.waiting_for_next = False  # Reset flag to allow checking translation
@@ -131,19 +133,26 @@ class VocabularyQuizApp(ctk.CTk):
     def handle_enter_key(self):
         if self.waiting_for_next:
             # Move to the next question if waiting for Enter
-            self.next_question()
-        else:
-            # Otherwise, check the current translation
-            self.check_translation()
+            if not self.words:
+                #to complete quiz
+                self.complete_quiz()
+            elif not self.cur_slide_words:
+                #load new slide
+                self.cur_slide_num += 1
+                self.print_slide()
+            else:
+                self.next_tranlation()
 
-    def check_translation(self):
+        else:
+            self.check_quenstion()
+            
+
+    def check_quenstion(self):
         self.label_feedback.pack()
         user_input = self.entry_translation.get().strip()
 
         if user_input.lower() == "stop":
-            self.label_question.configure(text="Quiz Stopped.")
-            self.label_feedback.configure(text=f"Final Score: {round((self.score / self.total_words) * 100, 2)}%", text_color="blue")
-            #self.entry_translation.configure(state="disabled")
+            self.complete_quiz()
             return
 
         finnish_word = self.current_word.finnish
@@ -155,19 +164,26 @@ class VocabularyQuizApp(ctk.CTk):
                 text=f"Wrong! The correct translation is '{finnish_word}'. Press Enter to continue.",
                 text_color="red"
             )
-            
-        self.cur_slide_words.remove(self.current_word)
-        self.words.remove(self.current_word)
 
-        self.label_score.configure(text=f"Score: {round((self.score / self.total_words) * 100, 2)}%")
+        self.current_word_index = self.cur_slide_words.index(self.current_word)
+
+        if(self.current_word.english == "-"):
+            self.cur_slide_words.remove(self.current_word)
+            self.words.remove(self.current_word)
+        else:
+            self.cur_slide_words[self.current_word_index].english = "-"
+
+        self.label_score.configure(text=f"Score: {round((self.score / (self.total_words * 2)) * 100, 2)}%")
         self.waiting_for_next = True  # Set flag to wait for Enter before next question
 
     def print_slide(self):
+        #UI
         self.label_question.pack_forget()
         self.lesson_menu.pack_forget()
         self.start_button.pack_forget()
         self.entry_translation.pack_forget()
         self.label_feedback.pack_forget()
+
         text_for_label = ""
 
         for word in self.words:
@@ -175,10 +191,19 @@ class VocabularyQuizApp(ctk.CTk):
                 self.cur_slide_words.append(word)
                 text_for_label += f"{word.finnish} - {word.english} - {word.sentance}\n"
 
+        #UI
         self.cur_slide_label.configure(text = text_for_label)
         self.cur_slide_label.pack()
+
         self.waiting_for_next = True
 
+    def complete_quiz(self):
+        self.label_question.configure(text="Quiz Completed!")
+        self.label_feedback.configure(text=f"Final Score: {round((self.score / (self.total_words * 2)) * 100, 2)}%", text_color="green")
+        #self.entry_translation.configure(state="disabled")
+        self.entry_translation.pack_forget()
+        self.lesson_menu.pack(pady = 20)
+        self.start_button.pack()
 
 if __name__ == "__main__":
     app = VocabularyQuizApp()
