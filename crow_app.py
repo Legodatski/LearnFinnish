@@ -55,7 +55,7 @@ class VocabularyQuizApp(ctk.CTk):
         self.continue_button = ctk.CTkButton(
             self.bottom_frame, 
             text="Continue", 
-            command=self.next_question, 
+            command=self.handle_enter_key, 
             width=600, 
             height=50, 
             font=("Arials", 64))
@@ -81,6 +81,7 @@ class VocabularyQuizApp(ctk.CTk):
         if lesson_name and lesson_name in self.lesson_files:
             self.words.clear()
             self.score = 0
+            self.label_score.configure(text=f"Score: 0%")
             self.waiting_for_next = False
 
 
@@ -104,16 +105,17 @@ class VocabularyQuizApp(ctk.CTk):
             self.label_feedback.configure(text="Please select a valid lesson.", text_color="red")
 
     def next_question(self):
-
         if not self.cur_slide_words:
-            if(self.cur_slide_num == self.slide_count):
+            if not self.words:
                 self.label_question.configure(text="Quiz Completed!")
                 self.label_feedback.configure(text=f"Final Score: {round((self.score / self.total_words) * 100, 2)}%", text_color="green")
                 #self.entry_translation.configure(state="disabled")
-                #to turn on the buttons
+                self.entry_translation.pack_forget()
+                self.lesson_menu.pack(pady = 20)
+                self.start_button.pack()
             else:
                 self.cur_slide_num += 1
-                self.load_lesson()
+                self.print_slide()
             return
 
         self.label_question.pack()
@@ -135,8 +137,10 @@ class VocabularyQuizApp(ctk.CTk):
             self.check_translation()
 
     def check_translation(self):
+        self.label_feedback.pack()
         user_input = self.entry_translation.get().strip()
-        if user_input.lower() == "stop!":
+
+        if user_input.lower() == "stop":
             self.label_question.configure(text="Quiz Stopped.")
             self.label_feedback.configure(text=f"Final Score: {round((self.score / self.total_words) * 100, 2)}%", text_color="blue")
             #self.entry_translation.configure(state="disabled")
@@ -153,6 +157,7 @@ class VocabularyQuizApp(ctk.CTk):
             )
             
         self.cur_slide_words.remove(self.current_word)
+        self.words.remove(self.current_word)
 
         self.label_score.configure(text=f"Score: {round((self.score / self.total_words) * 100, 2)}%")
         self.waiting_for_next = True  # Set flag to wait for Enter before next question
@@ -172,6 +177,7 @@ class VocabularyQuizApp(ctk.CTk):
 
         self.cur_slide_label.configure(text = text_for_label)
         self.cur_slide_label.pack()
+        self.waiting_for_next = True
 
 
 if __name__ == "__main__":
