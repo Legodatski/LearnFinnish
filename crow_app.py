@@ -13,7 +13,7 @@ class VocabularyQuizApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Finnish Vocabulary Quiz")
-        self.geometry("1280x720")
+        self.geometry("1920x720")
         
         self.path_lessons = "./Lessons/"
 
@@ -38,6 +38,7 @@ class VocabularyQuizApp(ctk.CTk):
         # UI Elements
         self.bottom_frame = ctk.CTkFrame(self)
         self.bottom_frame.pack(side="bottom", fill="x")
+        self.answers = ctk.CTkLabel(self, font=("Arials", 24))
 
         self.label_instruction = ctk.CTkLabel(self, text="Learn suomi :)", font=("Arials", 128))
         self.label_instruction.pack(pady=10)
@@ -89,6 +90,7 @@ class VocabularyQuizApp(ctk.CTk):
 
         if lesson_name and lesson_name in self.lesson_files:
             self.words.clear()
+            self.cur_slide_words.clear()
             self.score = 0
             self.label_score.configure(text=f"Score: 0%")
             self.waiting_for_next = False
@@ -98,13 +100,22 @@ class VocabularyQuizApp(ctk.CTk):
                 csv_reader = csv.reader(csv_file)
                 slide = 0
                 for row in csv_reader:
-                    if len(row) >= 2:
-                        finnish, english, sentance = row[0].strip(), row[1].strip(), row[2].strip()
-                        self.words.append(wd.Word(finnish, english, sentance, slide))
-                    
                     if(row[0] == "-"):
                         slide+=1
+                    else:
+                        finnish = row[0].strip()
+                        english = row[1].strip()
+                        sentance = "-"
 
+                        if(len(row) > 2):
+                            sentance = row[2].strip()
+
+                            if(len(row) > 3):
+                                sentance_answer = row[3].strip()
+                            else:
+                                sentance_answer = row[0].strip()
+
+                        self.words.append(wd.Word(finnish, english, sentance, sentance_answer, slide))
 
             self.slide_count = slide
             
@@ -122,8 +133,10 @@ class VocabularyQuizApp(ctk.CTk):
         self.current_word = random.choice(self.cur_slide_words)
 
         if(self.current_word.english == "-"):
+            self.answers.pack(side='bottom')
             self.label_question.configure(text=f"{self.current_word.sentance}")
         else:
+            self.answers.pack_forget()
             self.label_question.configure(text=f"Translate: {self.current_word.english}")
 
         self.entry_translation.delete(0, ctk.END)
@@ -154,20 +167,27 @@ class VocabularyQuizApp(ctk.CTk):
         if user_input.lower() == "stop":
             self.complete_quiz()
             return
-
+        
+        correct_answer = ""
         finnish_word = self.current_word.finnish
-        if user_input == finnish_word:
+
+        if((self.current_word.english == "-" or self.current_word.sentance == "-") and wd.Word.lenght(self.current_word) >= 4):
+            correct_answer = self.current_word.answer_sentance
+        else:
+            correct_answer = finnish_word 
+
+        if user_input.lower() == correct_answer:
             self.label_feedback.configure(text="Correct! Press Enter to continue.", text_color="green")
             self.score += 1
         else:
             self.label_feedback.configure(
-                text=f"Wrong! The correct translation is '{finnish_word}'. Press Enter to continue.",
+                text=f"Wrong! The correct answer is '{correct_answer}'. Press Enter to continue.",
                 text_color="red"
             )
 
         self.current_word_index = self.cur_slide_words.index(self.current_word)
 
-        if(self.current_word.english == "-"):
+        if(self.current_word.english == "-" or self.current_word.sentance == "-"):
             self.cur_slide_words.remove(self.current_word)
             self.words.remove(self.current_word)
         else:
@@ -185,17 +205,30 @@ class VocabularyQuizApp(ctk.CTk):
         self.label_feedback.pack_forget()
 
         text_for_label = ""
+        answers = ""
 
         for word in self.words:
+
+            cmp_sentance = ""
+            for c in word.sentance:
+                
+                if c == "_":
+                    cmp_sentance += word.answer_sentance
+                else:
+                    cmp_sentance += c
+
             if(word.slide == self.cur_slide_num):
                 self.cur_slide_words.append(word)
-                text_for_label += f"{word.finnish} - {word.english} - {word.sentance}\n"
+                text_for_label += f"{word.finnish}  -   {word.english}      {cmp_sentance}\n"
+                
+                answers += f"{word.answer_sentance} "
 
         #UI
-        self.cur_slide_label.configure(text = text_for_label)
+        self.cur_slide_label.configure(self, text = text_for_label, justify='left', padx = 30)
         self.cur_slide_label.pack()
 
         self.waiting_for_next = True
+        self.answers.configure(text = answers)
 
     def complete_quiz(self):
         self.label_question.configure(text="Quiz Completed!")
