@@ -176,7 +176,7 @@ class VocabularyQuizApp(ctk.CTk):
         else:
             correct_answer = finnish_word 
 
-        if user_input.lower() == correct_answer:
+        if user_input.lower() == correct_answer.lower():
             self.label_feedback.configure(text="Correct! Press Enter to continue.", text_color="green")
             self.score += 1
         else:
